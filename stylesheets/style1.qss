@@ -1,0 +1,37 @@
+
+QPushButton{
+    background-color: green;
+    color: white
+    }
+
+QPushButton:disabled{
+    background-color: red;
+    }
+
+QLineEdit{
+    selection-color: blue;
+    selection-background-color: red;
+}
+
+QLineEdit:focus{
+    selection-color: blue;
+    selection-background-color: green;
+}
+
+QFrame#main{
+   background-color: palette(Window);
+   border-radius: 5px;
+}
+
+QFrame#opf{
+   border: 1px inset grey;
+}
+
+QFrame#tpf{
+   border: 1px outset grey;
+}
+/*
+*QWidget#mainf{
+*    background-image: url(../assets/images/coverimage.jpg);
+*}
+*/
