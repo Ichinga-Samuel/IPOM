@@ -9,7 +9,7 @@ from PyQt5.QtPrintSupport import QPrinter, QPrintDialog
 from PyQt5.QtWidgets import (QApplication, QWidget, QLineEdit, QMainWindow, QPushButton, QLabel, QVBoxLayout,
                              QHBoxLayout, QGridLayout, QToolBar, QAction, QFormLayout, QDialog, QMessageBox, QStyle,
                              QTabWidget, QTableWidget, QTableWidgetItem, QStackedLayout, QGroupBox, QSizePolicy,
-                             QSpacerItem, QMenu, QScrollArea, QFileDialog, QFrame, QLayout, QTabBar)
+                             QSpacerItem, QMenu, QScrollArea, QFileDialog, QFrame, QLayout, QTabBar, QRadioButton, QSpinBox)
 
 import qtmodern.styles
 import qtmodern.windows
@@ -49,9 +49,49 @@ class MainLayout:
     def __init__(self):
 
         self.parameters = {}
-        self.main = QVBoxLayout()
-        container = QHBoxLayout()
-        self.opf = QFormLayout()
+        self.main = QVBoxLayout()   # Main layout containing the initial view
+        container = QHBoxLayout()   # layout for parameters configuration
+        self.opf = QFormLayout()    # operational parameters Form
+        opp_layout = QVBoxLayout()  # operational parameters layout
+        ol = QFrame()               # frame for operational parameters layout
+
+        # opp_layout.addLayout(sm)
+        opp_layout.addLayout(self.opf)
+
+        # Operational Parameters Content
+
+        sm = QHBoxLayout()  # special layout for speed of motor
+        sb = QGroupBox()    # groub box for speed radio buttons
+        # self.sb.clicked.connect(self.test)
+        sl = ["High", "Medium", "Low"]
+        self.sr = [QRadioButton(btn) for btn in sl]  # speed radio buttons
+        [(btn.clicked.connect(self.test), sm.addWidget(btn)) for btn in self.sr]
+        sb.setLayout(sm)
+
+        sbb = QHBoxLayout()
+        h = QSpinBox()
+        h.setEnabled(True)
+        h.setRange(2850, 3000)
+        m = QSpinBox()
+        m.setEnabled(False)
+        m.setRange(1440, 1480)
+        l = QSpinBox()
+        l.setEnabled(False)
+        l.setRange(950, 980)
+        [sbb.addWidget(w) for w in [h, l, m]]
+        self.spib = {'High': h, 'Medium': m, 'Low': l}
+        sff = QFrame()
+        sff.setLayout(sbb)
+
+
+
+
+
+
+        # l =
+        opp_layout.addWidget(sff)
+        opp_layout.addWidget(sb)
+        ol.setLayout(opp_layout)
 
         title = QLabel("Set Operational Parameters")
         title.setFont(QFont('Helvetica', 14))
@@ -65,8 +105,9 @@ class MainLayout:
         self.defaults.setToolTip('Toggle this button to use optimized values for Operational Parameters')
         self.defaults.setCheckable(1)
         self.defaults.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Maximum)
-        self.defaults.toggled.connect(self._defaults)
+        self.defaults.clicked.connect(self._defaults)
         dl = QLabel('Reset')
+
         dl.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Maximum)
         for op in ops:
             opp = QLineEdit()
@@ -81,9 +122,9 @@ class MainLayout:
             self.opf.addRow(lb, opp)
         self.opf.addRow(dl, self.defaults)
 
-        frame = QFrame()
-        frame.setLayout(self.opf)
-        frame.setObjectName('opf')
+        # frame = QFrame()
+        # frame.setLayout(self.opf)
+        # frame.setObjectName('opf')
 
         # Layout for Throughput input
         tpf = QVBoxLayout()
@@ -108,7 +149,7 @@ class MainLayout:
 
         container.addWidget(frame1)
         container.addSpacing(50)
-        container.addWidget(frame)
+        container.addWidget(ol)
 
         self.bs = QHBoxLayout()
         self.compute = QPushButton('Compute')
@@ -155,6 +196,17 @@ class MainLayout:
         self.widget.setContentsMargins(0, 50, 0, 0)
         self.widget.setLayout(ml)
         self.tabs.insertTab(0, self.widget, 'Results')
+
+    def test(self, s):
+            for btn in self.sr:
+                if i:= btn.isChecked():
+                    print(i)
+                    b = btn.text()
+                    sp = self.spib[b]
+                    sp.setEnabled(True)
+                    [v.setEnabled(False) for k, v in self.spib.items() if k!=b]
+
+            # print(b, s)
 
     def _defaults(self, s):
         dp = {'Nm': '1450', 'Nd': '109', 'Nc': '109', 'Na': '218', 'Nsp': '60'}
