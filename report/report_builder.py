@@ -1,11 +1,8 @@
-import sys
-from reportlab.pdfgen.canvas import Canvas
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle as PS
-from reportlab.lib.units import inch
 from reportlab.platypus import Paragraph, Image, Table, TableStyle, PageTemplate, BaseDocTemplate, PageBreak, Spacer
 from reportlab.platypus.frames import Frame
-from reportlab.lib.pagesizes import A4
+
 
 from configs.configs import static
 from .dims import *
@@ -20,15 +17,16 @@ class PageBuilder:
     def __init__(self, stories=None):
         self.stories = stories if isinstance(stories, list) else []
 
-    def add_header(self, heading, level=1, Title=False):
-        style = 'Title' if Title else f"Heading{level}"  # Title or f"Heading{level}"
+    def add_header(self, heading, level=1, title=False):
+        style = 'Title' if title else f"Heading{level}"  # Title or f"Heading{level}"
         self.stories.append(Paragraph(heading, styles[style]))
 
     def add_body(self, body):
         self.stories.append(Paragraph(body, bodytext))
 
-    def add_paragraph(self, body, pstyles={}, style=''):
-        style = styles[style] if style else PS(**pstyles)
+    def add_paragraph(self, body, p_styles=None, style=''):
+        if p_styles is None: p_styles = {}
+        style = styles[style] if style else PS(**p_styles)
         self.stories.append(Paragraph(body, style))
 
     def add_image(self, part, w=70, h=80, align='CENTER', kwn=True, cover=False):
@@ -38,7 +36,7 @@ class PageBuilder:
         :param w: The width of the image
         :param h: The height of the image
         :param align:
-        :param kwn:
+        :param kwn: keep with next
         :param cover: A boolean indicating that part will be a cover file for creating a cover image
         :return:
         """
@@ -53,16 +51,13 @@ class PageBuilder:
         img.keepWithNext = kwn
         if body := part['definition']:
             self.add_body(body)
-        # self.stories.append(Paragraph(title, sub))
 
-    def add_table(self, data, tstyles=None, kwargs=None):
-        if tstyles is None:
-            tstyles = []
-        if kwargs is None:
-            kwargs = {}
+    def add_table(self, data, t_styles=None, **kwargs):
+        if t_styles is None:
+            t_styles = []
         t = Table(data, **kwargs)
-        if tstyles:
-            t.setStyle(TableStyle(tstyles))
+        if t_styles:
+            t.setStyle(TableStyle(t_styles))
         self.stories.append(t)
 
     def add_flowable(self, flow):
@@ -71,20 +66,19 @@ class PageBuilder:
 
 class BuildDoc(BaseDocTemplate):
 
-    def __init__(self, output, fname, **kw):
+    def __init__(self, result, file_name, **kw):
         self.allowSplitting = 0
-        filename = fname
+        filename = file_name
         BaseDocTemplate.__init__(self, filename, **kw)
         padding = dict(leftPadding=px(5), bottomPadding=px(5), rightPadding=px(5), topPadding=px(5))
-        template2 = PageTemplate('normal', [Frame(0, 0, px(100), py(100), **padding, id='F1'), Frame(px(95), py(95), px(5), py(5), id='F3')], onPage=self.add_page_number,
+        page_template = PageTemplate('normal', [Frame(0, 0, px(100), py(100), **padding, id='F1'), Frame(px(95), py(95), px(5), py(5), id='F3')], onPage=self.add_page_number,
                                  onPageEnd=self.add_page_number)
-        template1 = PageTemplate('cover', [Frame(0, 0, px(100), py(100), **padding, id='F2')], onPage=self.add_author,
+        cover_template = PageTemplate('cover', [Frame(0, 0, px(100), py(100), **padding, id='F2')], onPage=self.add_author,
                                  onPageEnd=self.add_author, autoNextPageTemplate=1)
-        self.addPageTemplates([template1, template2])
+        self.addPageTemplates([cover_template, page_template])
         self.stories = []
-        self.PB = PageBuilder(stories=self.stories)
-        self.output = output
-        self.header = None
+        self.page_builder = PageBuilder(stories=self.stories)
+        self.result = result
         self.cover()
         self.section()
         self.build(self.stories)
@@ -94,11 +88,7 @@ class BuildDoc(BaseDocTemplate):
         canvas.saveState()
         canvas.setFont('Times-Roman', 10)
         page_number_text = "%d" % doc.page
-        canvas.drawCentredString(
-            px(50),
-            py(2),
-            page_number_text
-        )
+        canvas.drawCentredString(px(50), py(2), page_number_text)
         canvas.restoreState()
 
     @staticmethod
@@ -109,21 +99,10 @@ class BuildDoc(BaseDocTemplate):
         canvas.restoreState()
 
     def cover(self):
-        self.PB.add_header(self.output["cover"]['title'])
-        self.PB.add_flowable(Spacer(dx(5), dy(15)))
-        self.PB.add_image(self.output['cover']['image'], w=70, h=80, kwn=False, cover=True)
-        self.PB.add_flowable(PageBreak())
-
-    def handle_pageBegin(self):
-        if (x := self.pageTemplate).id == 'normal':
-            self.canv.drawCentredString(px(95), py(95), self.header)
-        super(BuildDoc, self).handle_pageBegin()
-
-    # def beforePage(self):
-    #     if self.header:
-    #         b = self.pageTemplate.frame[0]
-    #
-    #         self.canv.drawCentredString(px(95), py(95), self.header)
+        self.page_builder.add_header(self.result["cover"]['title'])
+        self.page_builder.add_flowable(Spacer(dx(5), dy(15)))
+        self.page_builder.add_image(self.result['cover']['image'], w=70, h=80, kwn=False, cover=True)
+        self.page_builder.add_flowable(PageBreak())
 
     def section(self):
         """
@@ -131,16 +110,15 @@ class BuildDoc(BaseDocTemplate):
         as defined in sections of the output dict
         :return:
         """
-        for section in self.output['sections']:
-            self.header = section['title']
-            self.PB.add_header(section['title'], Title=True)
+        for section in self.result['sections']:
+            self.page_builder.add_header(section['title'], title=True)
             if section['data']:
-                self.PB.add_table(section['data'], tstyles=[('BOX', (0,0), (-1,-1), 0.25, colors.black), ('INNERGRID', (0,0), (-1,-1), 0.25, colors.black)])
-            self.PB.add_flowable(PageBreak())
+                self.page_builder.add_table(section['data'], t_styles=[('BOX', (0,0), (-1,-1), 0.25, colors.black), ('INNERGRID', (0,0), (-1,-1), 0.25, colors.black)])
+            self.page_builder.add_flowable(PageBreak())
             if parts := section['drawings']:
                 for part in parts:
-                    self.PB.add_image(part)
-                    self.PB.add_flowable(PageBreak())
+                    self.page_builder.add_image(part)
+                    self.page_builder.add_flowable(PageBreak())
 
 
 

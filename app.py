@@ -54,8 +54,7 @@ class MainLayout:
         self.opp_form = QFormLayout()    # operational parameters Form
         opp_layout = QVBoxLayout()  # operational parameters layout
         opp_frame = QFrame()               # frame for operational parameters layout
-
-        # opp_layout.addLayout(sm)
+        # self.opp_form.setFormAlignment(Qt.AlignLeft)
         opp_layout.addLayout(self.opp_form)
 
         # Operational Parameters Content
@@ -116,20 +115,20 @@ class MainLayout:
         self.defaults_btn.setCheckable(1)
         self.defaults_btn.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Maximum)
         self.defaults_btn.clicked.connect(self._defaults)
-        dl = QLabel('Reset')
-
-        dl.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Maximum)
+        self.opp_form.setFormAlignment(Qt.AlignCenter)
         for param in opp_params:
             param_input = QLineEdit()
+            param_input.setAlignment(Qt.AlignCenter)
             param_input.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Maximum)
             param_input.setText(param[2])
             param_label = QLabel(param[1])
+            param_label.setAlignment(Qt.AlignCenter)
             param_label.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Maximum)
             param_input.setPlaceholderText(param[1])
             param_input.setObjectName(param[0])
             param_input.setInputMask('>0000;_')
             self.opp_form.addRow(param_label, param_input)
-        self.opp_form.addRow(dl, self.defaults_btn)
+        self.opp_form.addRow(self.defaults_btn)
 
         # Layout for Throughput input
         throughput_layout = QVBoxLayout()
@@ -236,7 +235,7 @@ class MainLayout:
             tpd, op = res['results'][0], res['results'][1:]
             output = model(tpd, op)
             self.parameters = format_results(output, tpd)
-            self.buiildTables()
+            self.buildTables()
             self.showImages()
             self.compute_btn.setDisabled(True)
             self.reset_btn.setEnabled(True)
@@ -286,12 +285,12 @@ class MainLayout:
         msg_box.setText(msg)
         msg_box.setIcon(QMessageBox.Warning)
         msg_box.setStandardButtons(QMessageBox.Ok)
-        s = msg_box.style()
-        ico = s.standardIcon(QStyle.SP_MessageBoxCritical)
+        style = msg_box.style()
+        ico = style.standardIcon(QStyle.SP_MessageBoxCritical)
         msg_box.setWindowIcon(ico)
         msg_box.exec_()
 
-    def buiildTables(self):
+    def buildTables(self):
         for section in self.parameters['sections']:
             if section['data']:
                 table = DataLayout(section)
@@ -299,13 +298,13 @@ class MainLayout:
                 self.tabs.addTab(table, section['title'])
 
     def showImages(self):
-        for s in self.parameters['sections']:
-            if not s['drawings']:
+        for section in self.parameters['sections']:
+            if not section['drawings']:
                 continue
-            p = [(i['files'], i['name']) for i in s['drawings']]
-            main = Display(p)
-            main.setAccessibleName(s['title'])
-            self.tabs.addTab(main, s['title'])
+            page = [(i['files'], i['name']) for i in section['drawings']]
+            main = Display(page)
+            main.setAccessibleName(section['title'])
+            self.tabs.addTab(main, section['title'])
 
 
 class DataLayout(QWidget):
@@ -321,31 +320,31 @@ class DataLayout(QWidget):
         self.table.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Maximum)
         self.table.setFrameStyle(2)
 
-        l = QLabel(self.unit['title'])
-        l.setAlignment(Qt.AlignCenter)
-        l.setFont(QFont('Helvetica', 18))
+        table_label = QLabel(self.unit['title'])
+        table_label.setAlignment(Qt.AlignCenter)
+        table_label.setFont(QFont('Helvetica', 18))
 
-        lo = QVBoxLayout()
-        lo.setAlignment(Qt.AlignCenter | Qt.AlignTop)
-        lo.setContentsMargins(20, 20, 20, 20)
-        lo.addWidget(l)
-        lo.addSpacing(20)
-        lo.addWidget(self.table)
+        table_layout = QVBoxLayout()
+        table_layout.setAlignment(Qt.AlignCenter | Qt.AlignTop)
+        table_layout.setContentsMargins(20, 20, 20, 20)
+        table_layout.addWidget(table_label)
+        table_layout.addSpacing(20)
+        table_layout.addWidget(self.table)
 
-        self.build()
+        self.build_table()
         self.table.resizeColumnsToContents()
         self.table.resizeRowsToContents()
-        self.setLayout(lo)
+        self.setLayout(table_layout)
 
-    def build(self):
+    def build_table(self):
         data = self.unit['data']
         self.table.setRowCount(len(data[1:]))
         self.table.setColumnCount(3)
 
         # set the header of the table
-        [self.table.setHorizontalHeaderItem(k, QTableWidgetItem(str(j))) for k, j in enumerate(data[0])]
-        for i, d in enumerate(data[1:]):
-            [self.table.setItem(i, k, QTableWidgetItem(str(j))) for k, j in enumerate(d)]
+        [self.table.setHorizontalHeaderItem(index, QTableWidgetItem(str(header))) for index, header in enumerate(data[0])]
+        for index, param in enumerate(data[1:]):
+            [self.table.setItem(index, pos, QTableWidgetItem(str(value))) for pos, value in enumerate(param)]
 
 
 class Display(QScrollArea):
@@ -357,146 +356,145 @@ class Display(QScrollArea):
         self.counter = 0
 
         # main layout of the tab
-        mstack = QHBoxLayout()
+        main_layout = QHBoxLayout()
 
         # Contains the drawing on display and button stack for traversing the drawings and the caption of the image on display
-        dstack = QVBoxLayout()
+        display_layout = QVBoxLayout()
 
         # Contains the thumbnails of all images available for that unit
-        self.tstack = QVBoxLayout()
-        self.tstack.setContentsMargins(0, 20, 0, 20)
-        self.create_tstack()
-        tscroll = QScrollArea()
-        twidget = QWidget()
-        twidget.setLayout(self.tstack)
-        tscroll.setWidget(twidget)
-        tscroll.setMaximumWidth(150)
-        tscroll.setWidgetResizable(True)
-        tscroll.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
-        tscroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
-        tscroll.setFrameStyle(0)
+        self.thumbnails_layout = QVBoxLayout()
+        self.thumbnails_layout.setContentsMargins(0, 20, 0, 20)
+        self.create_thumbnails()
+        thumbnails_scroll = QScrollArea()
+
+        thumbnails_widget = QWidget()
+        thumbnails_widget.setLayout(self.thumbnails_layout)
+        thumbnails_scroll.setWidget(thumbnails_widget)
+        thumbnails_scroll.setMaximumWidth(150)
+        thumbnails_scroll.setWidgetResizable(True)
+        thumbnails_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        thumbnails_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        thumbnails_scroll.setFrameStyle(0)
 
         # The buttons for traversing the drawings of the unit are in the layout bstack
-        bstack = QHBoxLayout()
-        self.next_ = QPushButton(QIcon(static('arrow.png', 'ico')), 'Next')
-        self.prev = QPushButton(QIcon(static('arrow-180.png', 'ico')), 'Previous')
-        self.prev.clicked.connect(self._prev)
-        self.next_.clicked.connect(self._next)
-        bstack.addStretch()
-        bstack.addWidget(self.prev, 0, Qt.AlignLeft)
-        bstack.addSpacing(50)
-        bstack.addWidget(self.next_, 0, Qt.AlignRight)
-        bstack.addStretch()
+        control_buttons = QHBoxLayout()
+        self.next_btn = QPushButton(QIcon(static('arrow.png', 'ico')), 'Next')
+        self.previous_btn = QPushButton(QIcon(static('arrow-180.png', 'ico')), 'Previous')
+        self.previous_btn.clicked.connect(self.previous)
+        self.next_btn.clicked.connect(self._next)
+        control_buttons.addStretch()
+        control_buttons.addWidget(self.previous_btn, 0, Qt.AlignLeft)
+        control_buttons.addSpacing(50)
+        control_buttons.addWidget(self.next_btn, 0, Qt.AlignRight)
+        control_buttons.addStretch()
 
         # A widget to display the drawings for that component
-        self.display = QLabel()
-        self.display.setMaximumSize(900, 900)
-        self.display.setAlignment(Qt.AlignCenter)
-        # self.display.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Ignored)
+        self.image_display = QLabel()
+        self.image_display.setMaximumSize(900, 900)
+        self.image_display.setAlignment(Qt.AlignCenter)
+        # self.image_display.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Ignored)
         self.image = QImage(self.size(), QImage.Format_RGB32)
 
-        self.display.setPixmap(QPixmap(static(parts[0][0], 'img')).scaled(self.display.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation))
-        self.display.setScaledContents(True)
+        self.image_display.setPixmap(QPixmap(static(parts[0][0], 'img')).scaled(self.image_display.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation))
+        self.image_display.setScaledContents(True)
 
         # Implements a context menu for interacting with the displayed image
-        self.display.setContextMenuPolicy(Qt.CustomContextMenu)
-        self.display.customContextMenuRequested.connect(self.context_menu)
+        self.image_display.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.image_display.customContextMenuRequested.connect(self.context_menu)
 
         # A description and title of the displayed image
-        self.caption = QLabel(parts[0][1])
-        self.caption.setAccessibleName(parts[0][0])
-        self.caption.setFont(QFont('Helvetica', 18))
-        self.caption.setAlignment(Qt.AlignCenter)
+        self.image_caption = QLabel(parts[0][1])
+        self.image_caption.setAccessibleName(parts[0][0])
+        self.image_caption.setFont(QFont('Helvetica', 18))
+        self.image_caption.setAlignment(Qt.AlignCenter)
 
         # TODO: Can image be made to popup and show in full?
 
-        dstack.addWidget(self.display, 0, Qt.AlignCenter)
-        dstack.addSpacing(20)
-        dstack.setContentsMargins(0, 20, 0, 20)
-        dstack.addWidget(self.caption)
-        dstack.addSpacing(20)
-        dstack.addLayout(bstack)
-        dstack.addStretch()
+        display_layout.addWidget(self.image_display, 0, Qt.AlignCenter)
+        display_layout.addSpacing(20)
+        display_layout.setContentsMargins(0, 20, 0, 20)
+        display_layout.addWidget(self.image_caption)
+        display_layout.addSpacing(20)
+        display_layout.addLayout(control_buttons)
+        display_layout.addStretch()
 
-        mstack.addStretch()
-        mstack.addLayout(dstack)
-        mstack.addStretch()
-        mstack.addWidget(tscroll)
+        main_layout.addStretch()
+        main_layout.addLayout(display_layout)
+        main_layout.addStretch()
+        main_layout.addWidget(thumbnails_scroll)
 
         self.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
-        self.chkbtns()
-        mwidget = QWidget()
-        mwidget.setLayout(mstack)
+        self.check_btns()
         self.setAlignment(Qt.AlignCenter)
-        self.setWidget(mwidget)
+        self.setLayout(main_layout)
         self.setWidgetResizable(True)
 
     def _next(self):
         self.counter += 1
-        self.slide()
+        self.image_slide()
 
-    def _prev(self):
+    def previous(self):
 
         self.counter -= 1
-        self.slide()
+        self.image_slide()
 
-    def slide(self):
-        self.chkbtns()
-        self.caption.setText(self.parts[self.counter][1])
-        self.caption.setAccessibleName(self.parts[self.counter][0])
-        self.display.setPixmap(QPixmap(static(self.parts[self.counter][0], 'img')))
+    def image_slide(self):
+        self.check_btns()
+        self.image_caption.setText(self.parts[self.counter][1])
+        self.image_caption.setAccessibleName(self.parts[self.counter][0])
+        self.image_display.setPixmap(QPixmap(static(self.parts[self.counter][0], 'img')))
 
-    def chkbtns(self):
+    def check_btns(self):
         if self.num <= self.counter + 1:
-            self.next_.setEnabled(False)
+            self.next_btn.setEnabled(False)
         else:
-            self.next_.setEnabled(True)
+            self.next_btn.setEnabled(True)
 
         if self.counter <= 0:
-            self.prev.setEnabled(False)
+            self.previous_btn.setEnabled(False)
         else:
-            self.prev.setEnabled(True)
+            self.previous_btn.setEnabled(True)
 
-    def goto(self, x=0):
-        self.counter = x
-        self.slide()
+    def goto_image(self, index=0):
+        self.counter = index
+        self.image_slide()
 
-    def create_tstack(self):
+    def create_thumbnails(self):
         """
         Populate the thumbnails layout tstack with 100X100 thumbnails of the drawings for the unit
         :param self:
         :return:
         """
-        for f, c in self.parts:
-            tindex = self.parts.index((f, c))
-            i = QLabel()
-            i.setMaximumSize(100, 100)
+        for image, caption in self.parts:
+            index = self.parts.index((image, caption))
+            img_label = QLabel()
+            img_label.setMaximumSize(100, 100)
             # i.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Ignored)
-            i.setPixmap(QPixmap(static(f, 'img')).scaled(i.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation))
-            i.setScaledContents(True)
-            c = QPushButton(c)
-            c.pressed.connect(lambda x=tindex: self.goto(x=x))
-            self.tstack.addWidget(i, 0, Qt.AlignCenter)
-            self.tstack.addWidget(c, 0, Qt.AlignCenter)
-            self.tstack.addSpacing(5)
-        self.tstack.addStretch()
+            img_label.setPixmap(QPixmap(static(image, 'img')).scaled(image.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation))
+            img_label.setScaledContents(True)
+            view_btn = QPushButton(caption)
+            view_btn.pressed.connect(lambda: self.goto_image(index=index))
+            self.thumbnails_layout.addWidget(img_label, 0, Qt.AlignCenter)
+            self.thumbnails_layout.addWidget(view_btn, 0, Qt.AlignCenter)
+            self.thumbnails_layout.addSpacing(5)
+        self.thumbnails_layout.addStretch()
 
     def context_menu(self, pos):
-        context = QMenu(self.display)
-        self.save = QAction("save", self.display)
-        self.save.triggered.connect(self.save_image)
-        self.print = QAction("print", self.display)
-        self.print.triggered.connect(self.print_image)
-        context.addAction(self.save)
-        context.addAction(self.print)
-        context.exec_(self.display.mapToGlobal(pos))
+        context = QMenu(self.image_display)
+        self.save_action = QAction("save", self.image_display)
+        self.save_action.triggered.connect(self.save_image)
+        self.print_action = QAction("print", self.image_display)
+        self.print_action.triggered.connect(self.print_image)
+        context.addAction(self.save_action)
+        context.addAction(self.print_action)
+        context.exec_(self.image_display.mapToGlobal(pos))
 
     def save_image(self):
-        path = str(homedir('i') / self.caption.accessibleName())
+        path = str(homedir('i') / self.image_caption.accessibleName())
         image_file, _ = QFileDialog.getSaveFileName(self, "Save Image", path, "JPG Files (*.jpeg *.jpg );;PNG Files (*.png);;Bitmap Files (*.bmp)")
         if image_file:  # and self.image.isNull() == False:
-            self.display.pixmap().save(image_file)
+            self.image_display.pixmap().save(image_file)
         else:
             QMessageBox.information(self, "Error", "Unable to save image.", QMessageBox.Ok)
 
@@ -515,13 +513,13 @@ class Display(QScrollArea):
             # Set QRect to hold painter's current viewport, which is the display
             rect = QRect(painter.viewport())
             # Get the size of display and use it to set the size of the viewport
-            size = QSize(self.display.pixmap().size())
+            size = QSize(self.image_display.pixmap().size())
             size.scale(rect.size(), Qt.KeepAspectRatio)
 
             painter.setViewport(rect.x(), rect.y(), size.width(), size.height())
-            painter.setWindow(self.display.pixmap().rect())
+            painter.setWindow(self.image_display.pixmap().rect())
             # Scale the image_label to fit the rect source (0, 0)
-            painter.drawPixmap(0, 0, self.display.pixmap())
+            painter.drawPixmap(0, 0, self.image_display.pixmap())
             # End painting
             painter.end()
 
