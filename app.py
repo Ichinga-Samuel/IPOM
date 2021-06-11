@@ -35,8 +35,8 @@ class MainWindow(QMainWindow):
 
         self.setWindowTitle("Integrated Palm Oil Machine Designer")
         self.setWindowFlags(Qt.FramelessWindowHint)
-        self.lo = MainLayout()
-        self.setCentralWidget(self.lo.tabs)
+        self.main_layout = MainLayout()
+        self.setCentralWidget(self.main_layout.tabs)
         self.setStyleSheet(style('style1'))
 
     def createDialog(self, info):
@@ -46,6 +46,7 @@ class MainWindow(QMainWindow):
 
 
 class MainLayout:
+
     def __init__(self):
 
         self.parameters = {}
@@ -73,7 +74,6 @@ class MainLayout:
         high_speed.setEnabled(True)
         high_speed.valueChanged.connect(self.speedOfMotor)
         high_speed.setRange(2850, 3000)
-        self.Nm = high_speed.value()
         medium_speed = QSpinBox()
         medium_speed.setSuffix(' rpm')
         medium_speed.setEnabled(False)
@@ -89,6 +89,7 @@ class MainLayout:
         speed_input_box = QGroupBox()
         speed_input_box.setTitle('Select Speed Of Motor')
         speed_input_box.setLayout(motor_speed_layout)
+        self.Nm = medium_speed.value()
 
         electric_motor_layout = QHBoxLayout()
         electric_motor_layout.addWidget(speed_level_buttons_box)
@@ -193,7 +194,7 @@ class MainLayout:
         self.tabs.setTabPosition(QTabWidget.North)
         self.tabs.setMovable(True)
 
-        self.tabs.insertTab(0, main_frame, 'Results')
+        self.tabs.insertTab(0, main_frame, 'Initialize')
 
     def setSpeedLevel(self, s):
         for btn in self.speed_level_buttons:
@@ -234,6 +235,9 @@ class MainLayout:
         if res['status']:
             tpd, op = res['results'][0], res['results'][1:]
             output = model(tpd, op)
+            if not isinstance(output, dict):
+                return self.msgBox("Err")
+                # QMessageBox().Critical(self,"Unexpected Error", "Error Occurred during Computation Check Your Values and Try Again", QMessageBox.Close, QMessageBox.Ok)
             self.parameters = format_results(output, tpd)
             self.buildTables()
             self.showImages()
@@ -471,6 +475,7 @@ class Display(QScrollArea):
             img_label = QLabel()
             img_label.setMaximumSize(100, 100)
             # i.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Ignored)
+            print(image)
             img_label.setPixmap(QPixmap(static(image, 'img')).scaled(image.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation))
             img_label.setScaledContents(True)
             view_btn = QPushButton(caption)
