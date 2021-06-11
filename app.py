@@ -49,7 +49,7 @@ class MainLayout:
     def __init__(self):
 
         self.parameters = {}
-        self.main = QVBoxLayout()   # Main layout containing the initial view
+        main_layout = QVBoxLayout()   # Main layout containing the initial view
         inputs_layout = QHBoxLayout()   # layout for parameters configuration
         self.opp_form = QFormLayout()    # operational parameters Form
         opp_layout = QVBoxLayout()  # operational parameters layout
@@ -112,10 +112,10 @@ class MainLayout:
                ('Nc', "Speed of Cake Breaker Shaft", '109'), ('Na', "Speed of Auger Shaft", '218'),
                ('Nsp', "Speed of Screw Press Shaft", '60')]
         self.defaults_btn = QPushButton('Clear')
-        self.defauls_btn.setToolTip('Toggle this button to use optimized values for Operational Parameters')
-        self.defauls_btn.setCheckable(1)
-        self.defauls_btn.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Maximum)
-        self.defauls_btn.clicked.connect(self._defaults)
+        self.defaults_btn.setToolTip('Toggle this button to use optimized values for Operational Parameters')
+        self.defaults_btn.setCheckable(1)
+        self.defaults_btn.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Maximum)
+        self.defaults_btn.clicked.connect(self._defaults)
         dl = QLabel('Reset')
 
         dl.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Maximum)
@@ -125,11 +125,11 @@ class MainLayout:
             param_input.setText(param[2])
             param_label = QLabel(param[1])
             param_label.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Maximum)
-            param_input.setPlaceholderText(opp_params[1])
-            param_input.setObjectName(opp_params[1])
+            param_input.setPlaceholderText(param[1])
+            param_input.setObjectName(param[0])
             param_input.setInputMask('>0000;_')
             self.opp_form.addRow(param_label, param_input)
-        self.opp_form.addRow(dl, self.defauls_btn)
+        self.opp_form.addRow(dl, self.defaults_btn)
 
         # Layout for Throughput input
         throughput_layout = QVBoxLayout()
@@ -177,66 +177,60 @@ class MainLayout:
         control_btns.addWidget(self.reset_btn)
         control_btns.setAlignment(Qt.AlignCenter | Qt.AlignBottom)
 
-        self.main.addLayout(inputs_layout)
-        self.main.addSpacing(20)
-        self.main.addLayout(control_btns)
+        main_layout.addLayout(inputs_layout)
+        main_layout.addSpacing(20)
+        main_layout.addLayout(control_btns)
+        main_layout.setAlignment(Qt.AlignCenter | Qt.AlignTop)
 
-        mframe = QFrame()
-        mframe.setLayout(self.main)
-        mframe.setObjectName('main')
-        mframe.setFrameShape(QFrame.StyledPanel)
-        mframe.setFrameStyle(QFrame.Raised | QFrame.Panel)
-        mframe.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Maximum)
-
-        ml = QVBoxLayout()
-        ml.addWidget(mframe)
-        ml.setAlignment(Qt.AlignCenter | Qt.AlignTop)
+        main_frame = QFrame()
+        main_frame.setLayout(main_layout)
+        main_frame.setObjectName('main')
+        main_frame.setFrameShape(QFrame.StyledPanel)
+        main_frame.setFrameStyle(QFrame.Raised | QFrame.Panel)
+        main_frame.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Maximum)
+        main_frame.setContentsMargins(0, 50, 0, 0)
 
         self.tabs = QTabWidget()
         self.tabs.setTabPosition(QTabWidget.North)
         self.tabs.setMovable(True)
 
-        self.widget = QWidget()
-        self.widget.setObjectName('mainf')
-        self.widget.setContentsMargins(0, 50, 0, 0)
-        self.widget.setLayout(ml)
-        self.tabs.insertTab(0, self.widget, 'Results')
+        self.tabs.insertTab(0, main_frame, 'Results')
 
     def setSpeedLevel(self, s):
-        for btn in self.sr:
+        for btn in self.speed_level_buttons:
             if btn.isChecked():
-                b = btn.text()
-                sp = self.spib[b]
+                level = btn.text()
+                sp = self.speed_input_widgets[level]
                 sp.setEnabled(True)
-                [v.setEnabled(False) for k, v in self.spib.items() if k!=b]
+                [v.setEnabled(False) for k, v in self.speed_input_widgets.items() if k!=level]
 
-    def speedOfMotor(self, r):
-        self.Nm = r
+    def speedOfMotor(self, speed):
+        self.Nm = speed
 
-    def _defaults(self, s):
-        dp = {'Nm': '1450', 'Nd': '109', 'Nc': '109', 'Na': '218', 'Nsp': '60'}
-        num = self.opf.count()
-        if s:
-            self.defauls_btn.setText('Defaults')
+    def _defaults(self, state):
+        default_values = {'Nd': '109', 'Nc': '109', 'Na': '218', 'Nsp': '60'}
+        num = self.opp_form.count()
+        if state:
+            self.defaults_btn.setText('Defaults')
         else:
-            self.defauls_btn.setText('Clear')
+            self.defaults_btn.setText('Clear')
         for i in range(num):
-            child = self.opf.itemAt(i).widget()
+            child = self.opp_form.itemAt(i).widget()
             if isinstance(child, QLineEdit):
-                if s:
+                if state:
                     child.setText('')
                 else:
-                    child.setText(dp[child.accessibleName()])
+                    child.setText(default_values[child.objectName()])
 
     def _generate(self):
-        path = homedir('m')
+        path = homedir('m')   # obtain path for creating storing pdf file
         path = str(path / self.parameters['filename'])
         file, _ = QFileDialog.getSaveFileName(self.report_btn, 'Save Manual', path, "PDF Format (*.pdf)")
 
         if file:
             BuildDoc(self.parameters, file)
 
-    def run(self, s):
+    def run(self, state):
         res = self.validate()
         if res['status']:
             tpd, op = res['results'][0], res['results'][1:]
@@ -250,7 +244,7 @@ class MainLayout:
         else:
             self.msgBox(res['err'])
 
-    def _reset(self, r):
+    def _reset(self, state):
         self.compute_btn.setDisabled(False)
         while self.tabs.count() > 1:
             self.tabs.removeTab(1)
@@ -259,26 +253,27 @@ class MainLayout:
 
     def validate(self):
         err = ''
-        inputs = [self.Nm]
+        inputs = []
         try:
-            if (i := self.capacity.text()) and (280 <= int(i) <= 5650):
+            if (i := self.throughput_input.text()) and (280 <= int(i) <= 5650):
                 inputs.append(int(i))
             else:
                 err = 'ThroughPut value falls outside acceptable range'
-                self.capacity.setFocus()
+                self.throughput_input.setFocus()
                 raise ValueError('')
 
-            num = self.opf.count()
+            num = self.opp_form.count()
             for i in range(num):
-                child = self.opf.itemAt(i).widget()
-                if isinstance(child, QLineEdit) and not (j := child.text()):
+                child = self.opp_form.itemAt(i).widget()
+                if isinstance(child, QLineEdit) and not (value:= child.text()):
                     err = f"{child.objectName()} Value is not Valid"
                     child.setFocus()
                     raise ValueError('')
                 elif isinstance(child, QLabel) or isinstance(child, QPushButton):
                     continue
                 else:
-                    inputs.append(int(j))
+                    inputs.append(int(value))
+            inputs.insert(1, self.Nm)
 
         except ValueError:
             return {'status': False, 'err': err}
@@ -286,15 +281,15 @@ class MainLayout:
             return {'status': True, 'results': inputs}
 
     def msgBox(self, msg):
-        mb = QMessageBox()
-        mb.setWindowTitle('Invalid Input(s)')
-        mb.setText(msg)
-        mb.setIcon(QMessageBox.Warning)
-        mb.setStandardButtons(QMessageBox.Ok)
-        s = mb.style()
+        msg_box = QMessageBox()
+        msg_box.setWindowTitle('Invalid Input(s)')
+        msg_box.setText(msg)
+        msg_box.setIcon(QMessageBox.Warning)
+        msg_box.setStandardButtons(QMessageBox.Ok)
+        s = msg_box.style()
         ico = s.standardIcon(QStyle.SP_MessageBoxCritical)
-        mb.setWindowIcon(ico)
-        mb.exec_()
+        msg_box.setWindowIcon(ico)
+        msg_box.exec_()
 
     def buiildTables(self):
         for section in self.parameters['sections']:
