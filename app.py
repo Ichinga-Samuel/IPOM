@@ -50,131 +50,136 @@ class MainLayout:
 
         self.parameters = {}
         self.main = QVBoxLayout()   # Main layout containing the initial view
-        container = QHBoxLayout()   # layout for parameters configuration
-        self.opf = QFormLayout()    # operational parameters Form
+        inputs_layout = QHBoxLayout()   # layout for parameters configuration
+        self.opp_form = QFormLayout()    # operational parameters Form
         opp_layout = QVBoxLayout()  # operational parameters layout
-        ol = QFrame()               # frame for operational parameters layout
+        opp_frame = QFrame()               # frame for operational parameters layout
 
         # opp_layout.addLayout(sm)
-        opp_layout.addLayout(self.opf)
+        opp_layout.addLayout(self.opp_form)
 
         # Operational Parameters Content
+        # Speed of Motor
+        speed_level_layout = QHBoxLayout()  # special layout for speed of motor
+        speed_level_buttons_box = QGroupBox()    # group box for speed radio buttons
+        speed_level_buttons_box.setTitle('Speed Level of Motor')
+        speed_levels = ["High", "Medium", "Low"]
+        self.speed_level_buttons = [QRadioButton(btn) for btn in speed_levels]  # speed radio buttons
+        [(btn.clicked.connect(self.setSpeedLevel), speed_level_layout.addWidget(btn)) for btn in self.speed_level_buttons]
+        speed_level_buttons_box.setLayout(speed_level_layout)
 
-        sm = QHBoxLayout()  # special layout for speed of motor
-        sb = QGroupBox()    # groub box for speed radio buttons
-        # self.sb.clicked.connect(self.test)
-        sl = ["High", "Medium", "Low"]
-        self.sr = [QRadioButton(btn) for btn in sl]  # speed radio buttons
-        [(btn.clicked.connect(self.test), sm.addWidget(btn)) for btn in self.sr]
-        sb.setLayout(sm)
+        motor_speed_layout = QHBoxLayout()  # layout for spinbox inputs
+        high_speed = QSpinBox()
+        high_speed.setSuffix(' rpm')
+        high_speed.setEnabled(True)
+        high_speed.valueChanged.connect(self.speedOfMotor)
+        high_speed.setRange(2850, 3000)
+        self.Nm = high_speed.value()
+        medium_speed = QSpinBox()
+        medium_speed.setSuffix(' rpm')
+        medium_speed.setEnabled(False)
+        medium_speed.valueChanged.connect(self.speedOfMotor)
+        medium_speed.setRange(1440, 1480)
+        low_speed = QSpinBox()
+        low_speed.setSuffix(' rpm')
+        low_speed.valueChanged.connect(self.speedOfMotor)
+        low_speed.setEnabled(False)
+        low_speed.setRange(950, 980)
+        [motor_speed_layout.addWidget(w) for w in [high_speed, medium_speed, low_speed]]
+        self.speed_input_widgets = {'High': high_speed, 'Medium': medium_speed, 'Low': low_speed}
+        speed_input_box = QGroupBox()
+        speed_input_box.setTitle('Select Speed Of Motor')
+        speed_input_box.setLayout(motor_speed_layout)
 
-        sbb = QHBoxLayout()
-        h = QSpinBox()
-        h.setEnabled(True)
-        h.setRange(2850, 3000)
-        m = QSpinBox()
-        m.setEnabled(False)
-        m.setRange(1440, 1480)
-        l = QSpinBox()
-        l.setEnabled(False)
-        l.setRange(950, 980)
-        [sbb.addWidget(w) for w in [h, l, m]]
-        self.spib = {'High': h, 'Medium': m, 'Low': l}
-        sff = QFrame()
-        sff.setLayout(sbb)
+        electric_motor_layout = QHBoxLayout()
+        electric_motor_layout.addWidget(speed_level_buttons_box)
+        electric_motor_layout.addWidget(speed_input_box)
 
+        electric_motor_frame = QFrame()
+        electric_motor_label = QLabel('Electric Motor Speed')
+        electric_motor_frame.setLayout(electric_motor_layout)
 
+        # opp_layout.addLayout(sil)
+        opp_layout.addWidget(electric_motor_frame)
+        opp_frame.setLayout(opp_layout)
 
-
-
-
-        # l =
-        opp_layout.addWidget(sff)
-        opp_layout.addWidget(sb)
-        ol.setLayout(opp_layout)
-
-        title = QLabel("Set Operational Parameters")
-        title.setFont(QFont('Helvetica', 14))
-        title.setAlignment(Qt.AlignCenter)
-        self.opf.addRow(title)
-        self.opf.setVerticalSpacing(20)
-        ops = [('Nm', "Speed of Motor", '1450'), ('Nd', "Speed of Digester Shaft", '109'),
+        opp_form_title = QLabel("Set Operational Parameters")
+        opp_form_title.setFont(QFont('Helvetica', 14))
+        opp_form_title.setAlignment(Qt.AlignCenter)
+        self.opp_form.addRow(opp_form_title)
+        self.opp_form.setVerticalSpacing(20)
+        opp_params = [('Nd', "Speed of Digester Shaft", '109'),
                ('Nc', "Speed of Cake Breaker Shaft", '109'), ('Na', "Speed of Auger Shaft", '218'),
                ('Nsp', "Speed of Screw Press Shaft", '60')]
-        self.defaults = QPushButton('Clear')
-        self.defaults.setToolTip('Toggle this button to use optimized values for Operational Parameters')
-        self.defaults.setCheckable(1)
-        self.defaults.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Maximum)
-        self.defaults.clicked.connect(self._defaults)
+        self.defaults_btn = QPushButton('Clear')
+        self.defauls_btn.setToolTip('Toggle this button to use optimized values for Operational Parameters')
+        self.defauls_btn.setCheckable(1)
+        self.defauls_btn.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Maximum)
+        self.defauls_btn.clicked.connect(self._defaults)
         dl = QLabel('Reset')
 
         dl.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Maximum)
-        for op in ops:
-            opp = QLineEdit()
-            opp.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Maximum)
-            opp.setText(op[2])
-            lb = QLabel(op[1])
-            lb.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Maximum)
-            opp.setPlaceholderText(op[1])
-            opp.setObjectName(op[1])
-            opp.setAccessibleName(op[0])
-            opp.setInputMask('>0000;_')
-            self.opf.addRow(lb, opp)
-        self.opf.addRow(dl, self.defaults)
-
-        # frame = QFrame()
-        # frame.setLayout(self.opf)
-        # frame.setObjectName('opf')
+        for param in opp_params:
+            param_input = QLineEdit()
+            param_input.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Maximum)
+            param_input.setText(param[2])
+            param_label = QLabel(param[1])
+            param_label.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Maximum)
+            param_input.setPlaceholderText(opp_params[1])
+            param_input.setObjectName(opp_params[1])
+            param_input.setInputMask('>0000;_')
+            self.opp_form.addRow(param_label, param_input)
+        self.opp_form.addRow(dl, self.defauls_btn)
 
         # Layout for Throughput input
-        tpf = QVBoxLayout()
-        self.capacity = QLineEdit()
-        self.capacity.setAlignment(Qt.AlignLeft | Qt.AlignCenter)
-        self.capacity.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Maximum)
-        dv = DV(280, 5650, 3, self.capacity)
-        dv.setNotation(DV.StandardNotation)
-        self.capacity.setValidator(dv)
-        self.capacity.setPlaceholderText('Enter value between 280 and 5650')
-        title = QLabel("Set Throughput Capacity")
-        title.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Maximum)
-        title.setFont(QFont('Helvetica', 14))
-        title.setAlignment(Qt.AlignLeft | Qt.AlignCenter)
-        tpf.addWidget(title)
-        tpf.addSpacing(15)
-        tpf.addWidget(self.capacity)
-        tpf.setAlignment(Qt.AlignLeft | Qt.AlignCenter)
-        frame1 = QFrame()
-        frame1.setLayout(tpf)
-        frame1.setObjectName('tpf')
+        throughput_layout = QVBoxLayout()
+        self.throughput_input = QLineEdit()
+        self.throughput_input.setAlignment(Qt.AlignLeft | Qt.AlignCenter)
+        self.throughput_input.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Maximum)
+        throughput_validator = DV(280, 5650, 3, self.throughput_input)  # Validate throughput
+        throughput_validator.setNotation(DV.StandardNotation)
+        self.throughput_input.setValidator(throughput_validator)
+        self.throughput_input.setPlaceholderText('Enter value between 280 and 5650')
+        throughput_layout_title = QLabel("Set Throughput Capacity")
+        throughput_layout_title.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Maximum)
+        throughput_layout_title.setFont(QFont('Helvetica', 14))
+        throughput_layout_title.setAlignment(Qt.AlignLeft | Qt.AlignCenter)
+        throughput_layout.addWidget(throughput_layout_title)
+        throughput_layout.addSpacing(15)
+        throughput_layout.addWidget(self.throughput_input)
+        throughput_layout.setAlignment(Qt.AlignLeft | Qt.AlignCenter)
+        throughput_frame = QFrame()
+        throughput_frame.setLayout(throughput_layout)
+        throughput_frame.setObjectName('tpf')
 
-        container.addWidget(frame1)
-        container.addSpacing(50)
-        container.addWidget(ol)
+        inputs_layout.addWidget(throughput_frame)
+        inputs_layout.addSpacing(50)
+        inputs_layout.addWidget(opp_frame)
 
-        self.bs = QHBoxLayout()
-        self.compute = QPushButton('Compute')
-        self.compute.setCheckable(True)
-        self.compute.clicked.connect(self.run)
+        control_btns = QHBoxLayout()
+        self.compute_btn = QPushButton('Compute')
+        self.compute_btn.setCheckable(True)
+        self.compute_btn.clicked.connect(self.run)
 
-        self.reset = QPushButton('Reset')
-        self.reset.setCheckable(True)
-        self.reset.clicked.connect(self._reset)
-        self.reset.setEnabled(False)
+        self.reset_btn = QPushButton('Reset')
+        self.reset_btn.setCheckable(True)
+        self.reset_btn.clicked.connect(self._reset)
+        self.reset_btn.setEnabled(False)
 
-        self.report = QPushButton('Generate Report')
-        self.report.setCheckable(True)
-        self.report.clicked.connect(self._generate)
-        self.report.setEnabled(False)
+        self.report_btn = QPushButton('Generate Report')
+        self.report_btn.setCheckable(True)
+        self.report_btn.clicked.connect(self._generate)
+        self.report_btn.setEnabled(False)
 
-        self.bs.addWidget(self.compute)
-        self.bs.setSpacing(15)
-        self.bs.addWidget(self.report)
-        self.bs.addWidget(self.reset)
-        self.bs.setAlignment(Qt.AlignCenter | Qt.AlignBottom)
+        control_btns.addWidget(self.compute_btn)
+        control_btns.setSpacing(15)
+        control_btns.addWidget(self.report_btn)
+        control_btns.addWidget(self.reset_btn)
+        control_btns.setAlignment(Qt.AlignCenter | Qt.AlignBottom)
 
-        self.main.addLayout(container)
+        self.main.addLayout(inputs_layout)
         self.main.addSpacing(20)
-        self.main.addLayout(self.bs)
+        self.main.addLayout(control_btns)
 
         mframe = QFrame()
         mframe.setLayout(self.main)
@@ -197,24 +202,24 @@ class MainLayout:
         self.widget.setLayout(ml)
         self.tabs.insertTab(0, self.widget, 'Results')
 
-    def test(self, s):
-            for btn in self.sr:
-                if i:= btn.isChecked():
-                    print(i)
-                    b = btn.text()
-                    sp = self.spib[b]
-                    sp.setEnabled(True)
-                    [v.setEnabled(False) for k, v in self.spib.items() if k!=b]
+    def setSpeedLevel(self, s):
+        for btn in self.sr:
+            if btn.isChecked():
+                b = btn.text()
+                sp = self.spib[b]
+                sp.setEnabled(True)
+                [v.setEnabled(False) for k, v in self.spib.items() if k!=b]
 
-            # print(b, s)
+    def speedOfMotor(self, r):
+        self.Nm = r
 
     def _defaults(self, s):
         dp = {'Nm': '1450', 'Nd': '109', 'Nc': '109', 'Na': '218', 'Nsp': '60'}
         num = self.opf.count()
         if s:
-            self.defaults.setText('Defaults')
+            self.defauls_btn.setText('Defaults')
         else:
-            self.defaults.setText('Clear')
+            self.defauls_btn.setText('Clear')
         for i in range(num):
             child = self.opf.itemAt(i).widget()
             if isinstance(child, QLineEdit):
@@ -226,7 +231,7 @@ class MainLayout:
     def _generate(self):
         path = homedir('m')
         path = str(path / self.parameters['filename'])
-        file, _ = QFileDialog.getSaveFileName(self.report, 'Save Manual', path, "PDF Format (*.pdf)")
+        file, _ = QFileDialog.getSaveFileName(self.report_btn, 'Save Manual', path, "PDF Format (*.pdf)")
 
         if file:
             BuildDoc(self.parameters, file)
@@ -239,22 +244,22 @@ class MainLayout:
             self.parameters = format_results(output, tpd)
             self.buiildTables()
             self.showImages()
-            self.compute.setDisabled(True)
-            self.reset.setEnabled(True)
-            self.report.setEnabled(True)
+            self.compute_btn.setDisabled(True)
+            self.reset_btn.setEnabled(True)
+            self.report_btn.setEnabled(True)
         else:
             self.msgBox(res['err'])
 
     def _reset(self, r):
-        self.compute.setDisabled(False)
+        self.compute_btn.setDisabled(False)
         while self.tabs.count() > 1:
             self.tabs.removeTab(1)
-        self.reset.setEnabled(False)
-        self.report.setEnabled(False)
+        self.reset_btn.setEnabled(False)
+        self.report_btn.setEnabled(False)
 
     def validate(self):
         err = ''
-        inputs = []
+        inputs = [self.Nm]
         try:
             if (i := self.capacity.text()) and (280 <= int(i) <= 5650):
                 inputs.append(int(i))
