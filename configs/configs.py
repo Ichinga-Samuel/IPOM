@@ -13,7 +13,6 @@ def static(file, typ):
     """
     types = {'img': 'images', 'ico': 'icons'}
     typ = types[typ]
-    print(str(assets / typ / file))
     return str(assets / typ/file)
 
 

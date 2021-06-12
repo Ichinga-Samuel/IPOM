@@ -28,6 +28,14 @@ if getattr(sys, 'frozen', False):
 homedir(typ='')
 
 
+def msgBox(box, *args):
+    dialogs = {"information": QMessageBox.information, "question": QMessageBox.question, "warning": QMessageBox.warning,
+               "critical": QMessageBox.critical}
+
+    msg_box = dialogs[box] if box in dialogs else dialogs['information']
+    return msg_box(*args)
+
+
 class MainWindow(QMainWindow):
 
     def __init__(self):
@@ -50,18 +58,18 @@ class MainLayout:
     def __init__(self):
 
         self.parameters = {}
-        main_layout = QVBoxLayout()   # Main layout containing the initial view
-        inputs_layout = QHBoxLayout()   # layout for parameters configuration
-        self.opp_form = QFormLayout()    # operational parameters Form
+        main_layout = QVBoxLayout()  # Main layout containing the initial view
+        inputs_layout = QHBoxLayout()  # layout for parameters configuration
+        self.opp_form = QFormLayout()  # operational parameters Form
         opp_layout = QVBoxLayout()  # operational parameters layout
-        opp_frame = QFrame()               # frame for operational parameters layout
-        # self.opp_form.setFormAlignment(Qt.AlignLeft)
+        opp_frame = QFrame()  # frame for operational parameters layout
+        opp_frame.setObjectName('opf')
         opp_layout.addLayout(self.opp_form)
 
         # Operational Parameters Content
         # Speed of Motor
         speed_level_layout = QHBoxLayout()  # special layout for speed of motor
-        speed_level_buttons_box = QGroupBox()    # group box for speed radio buttons
+        speed_level_buttons_box = QGroupBox()  # group box for speed radio buttons
         speed_level_buttons_box.setTitle('Speed Level of Motor')
         speed_levels = ["High", "Medium", "Low"]
         self.speed_level_buttons = [QRadioButton(btn) for btn in speed_levels]  # speed radio buttons
@@ -109,8 +117,8 @@ class MainLayout:
         self.opp_form.addRow(opp_form_title)
         self.opp_form.setVerticalSpacing(20)
         opp_params = [('Nd', "Speed of Digester Shaft", '109'),
-               ('Nc', "Speed of Cake Breaker Shaft", '109'), ('Na', "Speed of Auger Shaft", '218'),
-               ('Nsp', "Speed of Screw Press Shaft", '60')]
+                      ('Nc', "Speed of Cake Breaker Shaft", '109'), ('Na', "Speed of Auger Shaft", '218'),
+                      ('Nsp', "Speed of Screw Press Shaft", '60')]
         self.defaults_btn = QPushButton('Clear')
         self.defaults_btn.setToolTip('Toggle this button to use optimized values for Operational Parameters')
         self.defaults_btn.setCheckable(1)
@@ -202,7 +210,7 @@ class MainLayout:
                 level = btn.text()
                 sp = self.speed_input_widgets[level]
                 sp.setEnabled(True)
-                [v.setEnabled(False) for k, v in self.speed_input_widgets.items() if k!=level]
+                [v.setEnabled(False) for k, v in self.speed_input_widgets.items() if k != level]
 
     def speedOfMotor(self, speed):
         self.Nm = speed
@@ -223,12 +231,13 @@ class MainLayout:
                     child.setText(default_values[child.objectName()])
 
     def _generate(self):
-        path = homedir('m')   # obtain path for creating storing pdf file
+        path = homedir('m')  # obtain path for creating storing pdf file
         path = str(path / self.parameters['filename'])
         file, _ = QFileDialog.getSaveFileName(self.report_btn, 'Save Manual', path, "PDF Format (*.pdf)")
 
         if file:
             BuildDoc(self.parameters, file)
+            return msgBox('information', self.tabs, 'Report Saved', f'File Saved at {path}', QMessageBox.Close)
 
     def run(self, state):
         res = self.validate()
@@ -236,8 +245,8 @@ class MainLayout:
             tpd, op = res['results'][0], res['results'][1:]
             output = model(tpd, op)
             if not isinstance(output, dict):
-                return self.msgBox("Err")
-                # QMessageBox().Critical(self,"Unexpected Error", "Error Occurred during Computation Check Your Values and Try Again", QMessageBox.Close, QMessageBox.Ok)
+                return msgBox('critical', self.tabs, "Unexpected Error", "Error Occurred during Computation Check Your Values and Try Again", QMessageBox.Close)
+
             self.parameters = format_results(output, tpd)
             self.buildTables()
             self.showImages()
@@ -245,12 +254,13 @@ class MainLayout:
             self.reset_btn.setEnabled(True)
             self.report_btn.setEnabled(True)
         else:
-            self.msgBox(res['err'])
+            return msgBox('critical', self.tabs, 'Invalid Inputs', res['err'], QMessageBox.Close)
 
     def _reset(self, state):
         self.compute_btn.setDisabled(False)
         while self.tabs.count() > 1:
             self.tabs.removeTab(1)
+            # self.tabs
         self.reset_btn.setEnabled(False)
         self.report_btn.setEnabled(False)
 
@@ -268,7 +278,7 @@ class MainLayout:
             num = self.opp_form.count()
             for i in range(num):
                 child = self.opp_form.itemAt(i).widget()
-                if isinstance(child, QLineEdit) and not (value:= child.text()):
+                if isinstance(child, QLineEdit) and not (value := child.text()):
                     err = f"{child.objectName()} Value is not Valid"
                     child.setFocus()
                     raise ValueError('')
@@ -282,17 +292,6 @@ class MainLayout:
             return {'status': False, 'err': err}
         else:
             return {'status': True, 'results': inputs}
-
-    def msgBox(self, msg):
-        msg_box = QMessageBox()
-        msg_box.setWindowTitle('Invalid Input(s)')
-        msg_box.setText(msg)
-        msg_box.setIcon(QMessageBox.Warning)
-        msg_box.setStandardButtons(QMessageBox.Ok)
-        style = msg_box.style()
-        ico = style.standardIcon(QStyle.SP_MessageBoxCritical)
-        msg_box.setWindowIcon(ico)
-        msg_box.exec_()
 
     def buildTables(self):
         for section in self.parameters['sections']:
@@ -355,7 +354,7 @@ class Display(QScrollArea):
     def __init__(self, parts):
         super().__init__()
 
-        self.parts = parts   # Part files of the unit
+        self.parts = parts  # Part files of the unit
         self.num = len(parts)
         self.counter = 0
 
@@ -399,7 +398,8 @@ class Display(QScrollArea):
         # self.image_display.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Ignored)
         self.image = QImage(self.size(), QImage.Format_RGB32)
 
-        self.image_display.setPixmap(QPixmap(static(parts[0][0], 'img')).scaled(self.image_display.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation))
+        self.image_display.setPixmap(
+            QPixmap(static(parts[0][0], 'img')).scaled(self.image_display.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation))
         self.image_display.setScaledContents(True)
 
         # Implements a context menu for interacting with the displayed image
@@ -475,11 +475,10 @@ class Display(QScrollArea):
             img_label = QLabel()
             img_label.setMaximumSize(100, 100)
             # i.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Ignored)
-            print(image)
-            img_label.setPixmap(QPixmap(static(image, 'img')).scaled(image.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation))
+            img_label.setPixmap(QPixmap(static(image, 'img')).scaled(img_label.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation))
             img_label.setScaledContents(True)
             view_btn = QPushButton(caption)
-            view_btn.pressed.connect(lambda: self.goto_image(index=index))
+            view_btn.pressed.connect(lambda x=index: self.goto_image(index=x))
             self.thumbnails_layout.addWidget(img_label, 0, Qt.AlignCenter)
             self.thumbnails_layout.addWidget(view_btn, 0, Qt.AlignCenter)
             self.thumbnails_layout.addSpacing(5)
@@ -500,8 +499,9 @@ class Display(QScrollArea):
         image_file, _ = QFileDialog.getSaveFileName(self, "Save Image", path, "JPG Files (*.jpeg *.jpg );;PNG Files (*.png);;Bitmap Files (*.bmp)")
         if image_file:  # and self.image.isNull() == False:
             self.image_display.pixmap().save(image_file)
+            msgBox("information", self, "Image Saved", f"File Saved at {path}", QMessageBox.Ok)
         else:
-            QMessageBox.information(self, "Error", "Unable to save image.", QMessageBox.Ok)
+            msgBox("warning", self, "Error", "Unable to save image.", QMessageBox.Ok)
 
     def print_image(self):
         printer = QPrinter()
@@ -527,6 +527,8 @@ class Display(QScrollArea):
             painter.drawPixmap(0, 0, self.image_display.pixmap())
             # End painting
             painter.end()
+            return msgBox('information', self, 'Image Saved', "Image Saved as Pdf File", QMessageBox.Ok)
+        else: return msgBox("warning", self, "Error", "Unable to save image.", QMessageBox.Ok)
 
 
 app = QApplication(sys.argv)
